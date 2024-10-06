@@ -1,33 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useOpenAI } from "~/hooks/useOpenAI";
+import { useGameStore } from "~/hooks/useGameStore";
 
 interface StartClientProps {
     userName: string;
 }
 
 export default function StartClient({ userName }: StartClientProps) {
-    const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
-    const { generateSetting, generateImage } = useOpenAI();
+    const { generateAndStoreSetting, generateAndStoreImage, isLoading } = useGameStore();
 
     const handleNewExperience = async () => {
-        setIsLoading(true);
         try {
-            const setting = await generateSetting();
-            const imageUrl = await generateImage(setting ?? '');
-            
-            // TODO: Save setting and imageUrl to global state
+            await generateAndStoreSetting();
+            await generateAndStoreImage();
             
             // Navigate to the game board
             router.push('/game-board');
         } catch (error) {
             console.error('Error:', error);
             // Handle error (e.g., show error message to user)
-        } finally {
-            setIsLoading(false);
         }
     };
 
