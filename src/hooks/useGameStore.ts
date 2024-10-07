@@ -1,73 +1,58 @@
 import { create } from 'zustand';
-import OpenAI from 'openai';
-
-const openai = new OpenAI();
+import { api } from "~/trpc/react";
 
 interface GameState {
   setting: string | null;
   imageUrl: string | null;
   chatHistory: { role: string; content: string }[];
   isLoading: boolean;
-  generateAndStoreSetting: () => Promise<void>;
-  generateAndStoreImage: () => Promise<void>;
+  setSetting: (setting: string) => void;
+  setImageUrl: (imageUrl: string) => void;
+  setIsLoading: (isLoading: boolean) => void;
 }
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>((set) => ({
   setting: null,
   imageUrl: null,
   chatHistory: [],
   isLoading: false,
+  setSetting: (setting) => set({ setting }),
+  setImageUrl: (imageUrl) => set({ imageUrl }),
+  setIsLoading: (isLoading) => set({ isLoading }),
+}));
 
-  generateAndStoreSetting: async () => {
-    set({ isLoading: true });
+export const useGameActions = () => {
+  const { setSetting, setImageUrl, setIsLoading } = useGameStore();
+  const generateSettingMutation = api.game.generateSetting.useMutation();
+  const generateImageMutation = api.game.generateImage.useMutation();
+
+  const generateAndStoreSetting = async () => {
+    setIsLoading(true);
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are an expert worldbuilder with a wealth of knowledge in fantasy storytelling and game design. Your purpose is to generate a unique and immersive fantasy setting for a game or story. Example descriptions of your created settings could be: 'a castle in a storm', 'an abandoned chapel covered in ivy at mid-day', or 'a desert settlement with brick buildings and many smoking chimneys'." },
-          {
-            role: "user",
-            content: "Create a unique fantasy setting. Respond ONLY with a short description of the setting. For example: 'ramshackle wooden huts on the edge of a cliff.'. Proceed.",
-          },
-        ],
-      });
-      const newSetting = response.choices[0]?.message.content ?? '';
-      set((state) => ({
-        setting: newSetting,
-        chatHistory: [
-          ...state.chatHistory,
-          { role: 'assistant', content: newSetting },
-        ],
-      }));
+      const setting = await generateSettingMutation.mutateAsync();
+      setSetting(setting);
     } catch (error) {
       console.error('Error generating setting:', error);
-      // Handle error (e.g., set an error state)
     } finally {
-      set({ isLoading: false });
+      setIsLoading(false);
     }
-  },
+  };
 
-  generateAndStoreImage: async () => {
-    const { setting } = get();
-    if (!setting) {
-      console.error('No setting available to generate image');
-      return;
-    }
-    set({ isLoading: true });
+  const generateAndStoreImage = async () => {
+    setIsLoading(true);
     try {
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: `Generate landscape fantasy art reminiscent of the Lord of the Rings or Elden Ring depicting ${setting}.`,
-        n: 1,
-        size: "1024x1024",
-      });
-      const newImageUrl = response.data[0]?.url;
-      set({ imageUrl: newImageUrl });
+      const { setting } = useGameStore.getState();
+      if (!setting) {
+        throw new Error('No setting available to generate image');
+      }
+      const imageUrl = await generateImageMutation.mutateAsync({ setting });
+      setImageUrl(imageUrl);
     } catch (error) {
       console.error('Error generating image:', error);
-      // Handle error (e.g., set an error state)
     } finally {
-      set({ isLoading: false });
+      setIsLoading(false);
     }
-  },
-}));
+  };
+
+  return { generateAndStoreSetting, generateAndStoreImage };
+};

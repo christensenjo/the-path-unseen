@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useGameStore } from "~/hooks/useGameStore";
+import { useGameStore, useGameActions } from "~/hooks/useGameStore";
 
 interface StartClientProps {
     userName: string;
@@ -9,7 +9,8 @@ interface StartClientProps {
 
 export default function StartClient({ userName }: StartClientProps) {
     const router = useRouter();
-    const { generateAndStoreSetting, generateAndStoreImage, isLoading } = useGameStore();
+    const { isLoading } = useGameStore();
+    const { generateAndStoreSetting, generateAndStoreImage } = useGameActions();
 
     const handleNewExperience = async () => {
         try {
